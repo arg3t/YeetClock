@@ -14,4 +14,3 @@ Yeah I know. As I said it is side project that I did in pretty much a week durin
 - Integrate a bigger lcd screen.
 - Make the README less cringey
 - Refactor the code properly 
--
