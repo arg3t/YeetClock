@@ -28,11 +28,26 @@
             android:id="@+id/blue_seekbar" app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@+id/green_seekbar"
             android:layout_marginTop="28dp" android:max="255"/>
+
     <Button
-            android:text="ON"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/power_toggle" app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@+id/blue_seekbar"
-            android:layout_marginTop="36dp" app:layout_constraintHorizontal_bias="0.498"/>
+        android:id="@+id/apply_color"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="56dp"
+        android:text="APPLY"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.232"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/blue_seekbar" />
+
+    <Button
+        android:id="@+id/power_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="56dp"
+        android:text="ON"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.581"
+        app:layout_constraintStart_toEndOf="@+id/apply_color"
+        app:layout_constraintTop_toBottomOf="@+id/blue_seekbar" />
 </androidx.constraintlayout.widget.ConstraintLayout>

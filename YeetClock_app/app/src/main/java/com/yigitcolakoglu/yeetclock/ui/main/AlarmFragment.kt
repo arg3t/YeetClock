@@ -12,11 +12,16 @@ import android.widget.TimePicker
 import android.widget.Toast
 import ca.antonious.materialdaypicker.MaterialDayPicker
 import com.android.volley.Request
+import com.android.volley.RequestQueue
 import com.android.volley.Response
+import com.android.volley.toolbox.BasicNetwork
+import com.android.volley.toolbox.DiskBasedCache
+import com.android.volley.toolbox.HurlStack
 import com.android.volley.toolbox.StringRequest
 import com.google.gson.Gson
 
 import com.yigitcolakoglu.yeetclock.R
+import java.io.File
 import java.lang.Math.floor
 import java.lang.Math.toIntExact
 import java.sql.Time
@@ -25,6 +30,13 @@ import kotlin.math.pow
 
 class AlarmFragment : Fragment() , View.OnClickListener{
     private var listener: OnFragmentInteractionListener? = null
+    val cache = DiskBasedCache(File("/"), 1024 * 1024) // 1MB cap
+    var host = ""
+    // Set up the network to use HttpURLConnection as the HTTP client.
+    val network = BasicNetwork(HurlStack())
+    val requestQueue = RequestQueue(cache, network).apply {
+        start()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,22 +52,26 @@ class AlarmFragment : Fragment() , View.OnClickListener{
         val updateButton = layout.findViewById<Button>(R.id.alarm_update_button)
         updateButton.setOnClickListener(this)
         timeSelector.setIs24HourView(true)
-        val url = "http://yeetclock.xyz/getcolor"
+        val file = File(activity?.applicationContext?.filesDir, "ip")
+        host = file.readText()
+        val url = "http://%s/getalarm".format(host)
         val stringRequest = StringRequest(
             Request.Method.GET, url,
             Response.Listener<String> { response ->
                 val gson = Gson()
                 val alarm = gson.fromJson(response, Alarm::class.java)
                 var enabled_days = arrayListOf<MaterialDayPicker.Weekday>()
-                for(i in alarm.days){
-                    when(i){
-                        0 -> enabled_days.add(MaterialDayPicker.Weekday.MONDAY)
-                        1 -> enabled_days.add(MaterialDayPicker.Weekday.TUESDAY)
-                        2 -> enabled_days.add(MaterialDayPicker.Weekday.WEDNESDAY)
-                        3 -> enabled_days.add(MaterialDayPicker.Weekday.THURSDAY)
-                        4 -> enabled_days.add(MaterialDayPicker.Weekday.FRIDAY)
-                        5 -> enabled_days.add(MaterialDayPicker.Weekday.SATURDAY)
-                        6 -> enabled_days.add(MaterialDayPicker.Weekday.SUNDAY)
+                for((k, i) in alarm.days.iterator().withIndex()){
+                    if(i == 1) {
+                        when (k) {
+                            0 -> enabled_days.add(MaterialDayPicker.Weekday.MONDAY)
+                            1 -> enabled_days.add(MaterialDayPicker.Weekday.TUESDAY)
+                            2 -> enabled_days.add(MaterialDayPicker.Weekday.WEDNESDAY)
+                            3 -> enabled_days.add(MaterialDayPicker.Weekday.THURSDAY)
+                            4 -> enabled_days.add(MaterialDayPicker.Weekday.FRIDAY)
+                            5 -> enabled_days.add(MaterialDayPicker.Weekday.SATURDAY)
+                            6 -> enabled_days.add(MaterialDayPicker.Weekday.SUNDAY)
+                        }
                     }
                 }
                 daySelector.setSelectedDays(enabled_days.toList())
@@ -67,6 +83,7 @@ class AlarmFragment : Fragment() , View.OnClickListener{
             Response.ErrorListener { error ->
                 Toast.makeText(getActivity(),"Issue with GET request", Toast.LENGTH_SHORT).show()
             })
+        requestQueue.add(stringRequest)
         return layout
     }
 
@@ -113,12 +130,12 @@ class AlarmFragment : Fragment() , View.OnClickListener{
             }
         }
         var days_int = 0
-        for(i in 0..7){
+        for(i in 0..6){
             days_int += (2.0.pow(i)*new_days[i]).toInt()
         }
         val hour = this.view?.findViewById<TimePicker>(R.id.alarm_time_picker)?.hour?.times(3600)
         val minute = this.view?.findViewById<TimePicker>(R.id.alarm_time_picker)?.minute?.times(60)
-        val url = "http://yeetclock.xyz/setAlarm?time=%d&days=%d"
+        val url = "http://%s/".format(host) + "setalarm?time=%d&days=%d"
         val stringRequest = StringRequest(
             Request.Method.GET, url.format(hour?.let { minute?.plus(it) },days_int),
             Response.Listener<String> { response ->
@@ -126,6 +143,7 @@ class AlarmFragment : Fragment() , View.OnClickListener{
             Response.ErrorListener { error ->
                 Toast.makeText(getActivity(),"Issue with GET request", Toast.LENGTH_SHORT).show()
             })
+        requestQueue.add(stringRequest)
     }
 }
 

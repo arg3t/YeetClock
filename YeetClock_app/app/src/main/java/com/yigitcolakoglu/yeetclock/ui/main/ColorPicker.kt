@@ -29,10 +29,11 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
     // TODO: Rename and change types of parameters
 
     private var listener: OnFragmentInteractionListener? = null
-    public var green: Int = 0
-    public var red: Int = 0
-    public var blue: Int = 0
-    public var on: Boolean = true
+    var green: Int = 0
+    var red: Int = 0
+    var blue: Int = 0
+    var on: Boolean = true
+    var host = ""
     val cache = DiskBasedCache(File("/"), 1024 * 1024) // 1MB cap
 
     // Set up the network to use HttpURLConnection as the HTTP client.
@@ -46,6 +47,8 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val file = File(activity?.applicationContext?.filesDir, "ip")
+        host = file.readText()
     }
 
     override fun onCreateView(
@@ -58,7 +61,20 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
         layout.findViewById<SeekBar>(R.id.blue_seekbar).setOnSeekBarChangeListener(this)
         layout.findViewById<SeekBar>(R.id.red_seekbar).setOnSeekBarChangeListener(this)
         layout.findViewById<Button>(R.id.power_toggle).setOnClickListener(this)
-        val url = "http://yeetclock.xyz/getcolor"
+        layout.findViewById<Button>(R.id.apply_color).setOnClickListener{
+            val url = "http://%s/".format(host) + "setcolor?R=%d&G=%d&B=%d&O=%d"
+            Log.i("COLORS",url.format(this.red,this.green,this.blue, if (on) 1 else 0))
+            val stringRequest = StringRequest(
+                Request.Method.GET, url.format(this.red,this.green,this.blue,if (on) 1 else 0),
+                Response.Listener<String> { response ->
+                },
+                Response.ErrorListener { error ->
+                    Toast.makeText(getActivity(),"Issue with GET request",Toast.LENGTH_SHORT).show()
+                })
+            requestQueue.add(stringRequest)
+
+        };
+        val url = "http://%s/getcolor".format(host)
         val stringRequest = StringRequest(
             Request.Method.GET, url,
             Response.Listener<String> { response ->
@@ -134,23 +150,10 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
         if (!fromUser){
             return
         }
-        val g: Int = this.view?.findViewById<SeekBar>(R.id.green_seekbar)!!.progress
-        val r: Int = this.view?.findViewById<SeekBar>(R.id.red_seekbar)!!.progress
-        val b: Int = this.view?.findViewById<SeekBar>(R.id.blue_seekbar)!!.progress
-        red = r
-        blue = b
-        green = g
-        this.view?.findViewById<TextView>(R.id.colorShow)!!.setBackgroundColor(Color.rgb(r,g,b))
-        val url = "http://yeetclock.xyz/setcolor?R=%d&G=%d&B=%d&O=%d"
-        Log.i("COLORS",url.format(r,b,g, if (on) 1 else 0))
-        val stringRequest = StringRequest(
-            Request.Method.GET, url.format(r,g,b,if (on) 1 else 0),
-            Response.Listener<String> { response ->
-            },
-            Response.ErrorListener { error ->
-                Toast.makeText(getActivity(),"Issue with GET request",Toast.LENGTH_SHORT).show()
-            })
-        requestQueue.add(stringRequest)
+        this.red = this.view?.findViewById<SeekBar>(R.id.red_seekbar)!!.progress
+        this.green = this.view?.findViewById<SeekBar>(R.id.green_seekbar)!!.progress
+        this.blue = this.view?.findViewById<SeekBar>(R.id.blue_seekbar)!!.progress
+        this.view?.findViewById<TextView>(R.id.colorShow)!!.setBackgroundColor(Color.rgb(this.red,this.green,this.blue))
 
     }
 
@@ -170,7 +173,7 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
             palette?.setVisibility(View.INVISIBLE)
             button?.setBackgroundColor(Color.BLACK)
             button?.setTextColor(Color.WHITE)
-            val url = "http://yeetclock.xyz/setcolor?R=%d&G=%d&B=%d&O=0"
+            val url = "http://%s/".format(host) + "setcolor?R=%d&G=%d&B=%d&O=0"
             val stringRequest = StringRequest(
                 Request.Method.GET, url.format(red,green,blue),
                 Response.Listener<String> { response ->
@@ -187,7 +190,7 @@ class ColorPicker : Fragment(), SeekBar.OnSeekBarChangeListener, View.OnClickLis
             palette?.setVisibility(View.VISIBLE)
             button?.setBackgroundColor(Color.WHITE)
             button?.setTextColor(Color.BLACK)
-            val url = "http://yeetclock.xyz/setcolor?R=%d&G=%d&B=%d&O=1"
+            val url = "http://%s/".format(host) + "setcolor?R=%d&G=%d&B=%d&O=1"
             val stringRequest = StringRequest(
                 Request.Method.GET, url.format(red,green,blue),
                 Response.Listener<String> { response ->

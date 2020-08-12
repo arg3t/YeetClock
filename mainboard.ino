@@ -7,8 +7,7 @@
 #include <WiFiUdp.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+
 
 #include "tetris.h"
 #include "secrets.h"
@@ -17,11 +16,11 @@
 #define SCREEN_HEIGHT 64
 #define OLED_RESET     -1
 
+#define ALARM_PIN 12
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 ESP8266WebServer server(80); //Server on port 80
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "asia.pool.ntp.org", 10800);
+NTPClient timeClient(ntpUDP, "asia.pool.ntp.org", 3600 * 3, 60000);
 
 char daysOfTheWeek[7][12] = { "Sunday","Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 int days[7];
@@ -34,10 +33,10 @@ int day_prev = -1;
 bool alarm_ran = false;
 
 // ESP8266 Network Variables
-IPAddress staticIP(192, 168, 1, 4); 
-IPAddress gateway(192, 168, 1, 1);   
+IPAddress staticIP(192, 168, 2, 7); 
+IPAddress gateway(192, 168, 2, 1);   
 IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(8, 8, 8, 8);
+IPAddress dns(192, 168, 2, 3);
 const char* deviceName = "yeetclock.xyz";
 
 
@@ -47,10 +46,13 @@ void setup() {
     pinMode(14,OUTPUT);
     pinMode(13,OUTPUT);
     digitalWrite(13,LOW);
-    pinMode(15,OUTPUT);
+    pinMode(15, OUTPUT);
+   
     pinMode(0,OUTPUT);
     pinMode(2,OUTPUT);
-
+    pinMode(ALARM_PIN, OUTPUT);
+    
+    digitalWrite(ALARM_PIN,LOW);
     // Start WiFi
     WiFi.hostname(deviceName);
     WiFi.config(staticIP, subnet, gateway, dns);
@@ -85,11 +87,10 @@ void setup() {
     read_alarm_date(days); 
 
     Serial.println("test"); // ESP8266 gives errors without this line idk why
-
-    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Test i2c connection
-      Serial.println(F("SSD1306 allocation failed"));
+    while(!timeClient.update()){
+      Serial.println("Receiving NTP time for the first time");
     }
-    timeClient.update(); // Sync with time server
+    Serial.println(timeClient.getFormattedTime());
     Serial.println("test2"); // Again, gives errors idk why
 
 }
@@ -142,6 +143,7 @@ void decimal_to_binary(int decimal, int binary[]){
 }
 
 void playTone(){
+  digitalWrite(ALARM_PIN, HIGH);
   double duration;
   double freq;
   for (int i = 0; i < server.args(); i++) {
@@ -154,6 +156,7 @@ void playTone(){
   }
   tone(15,freq,duration*1000);
   server.send(200, "text/plain", "OK");
+  digitalWrite(ALARM_PIN, LOW);
 }
 
 
@@ -232,7 +235,7 @@ void getAlarm(){
   int days[7];
   read_alarm_date(days);
   int time = read_alarm_time();
-  String response = "{\"days\":{";
+  String response = "{\"days\":[";
   for(int i=0;i<7;i++){
     response += String(days[i]);
     if(i != 6){
@@ -246,23 +249,6 @@ void getAlarm(){
 
 void getColor(){
   server.send(200, "application/json","{\"RGB\":[" + String(RGB[0]) + "," + String(RGB[1]) + "," + String(RGB[2]) + "], \"ON\":" + String(RGB[3]) + "}");
-}
-
-void show_time(String time, String day){
-  display.clearDisplay();
-  display.setCursor(0,0);   
-  display.setTextSize(2);                  
-  display.setTextColor(WHITE);            
-  display.setCursor(16,0);                 
-  display.println(time);              
-  display.setCursor(18,24);   
-  display.println(day); 
-  display.setTextSize(1);              
-  display.setFont();
-  display.setTextColor(WHITE);         
-  display.setCursor(32,48);
-  display.println(WiFi.localIP()); 
-  display.display();
 }
 
 void geteeprom(){
@@ -280,13 +266,6 @@ void loop() {
       alarm_ran=false;
     }
     previousMillis = currentMillis;
-    if(counter==300){
-      counter=0;
-      Serial.println("test3");
-      timeClient.update();
-      Serial.println("test4");
-    }
-    show_time(timeClient.getFormattedTime(),daysOfTheWeek[timeClient.getDay()]);
     int time = timeClient.getHours()*3600 + timeClient.getMinutes()*60 + timeClient.getSeconds();
     Serial.println("TIME");
     Serial.println(time);
@@ -298,7 +277,9 @@ void loop() {
       analogWrite(2,255);
       analogWrite(14,255);
       Serial.println("ALARM");
+      digitalWrite(ALARM_PIN, HIGH);
       playTetris();
+      digitalWrite(ALARM_PIN, LOW);
       analogWrite(0,0);
       analogWrite(2,0);
       analogWrite(14,0);
